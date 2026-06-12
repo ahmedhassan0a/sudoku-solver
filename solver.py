@@ -1,56 +1,48 @@
 import numpy as np
 from itertools import islice
-from numpy import ndarray
-from puzzle_fetcher import fetch_puzzle
-
 
 def get_possible_fits(puzzle: np.ndarray) -> dict:
     possibilities = dict()
-    for i in range(9):
-        for j in range(9):
-            if puzzle[i, j] == 0 :
-                possibilities[i*10+j] = []
-                for num in range(10):
-                    if check_fit(puzzle, (i, j), num):
-                        possibilities[i*10+j].append(num)
-    return possibilities
+    for i in range(81):
+        if puzzle[i] == 0 :
+            possibilities[i] = []
+            for num in range(1, 10):
+                fit = check_fit(puzzle, i, num)
+                if fit: possibilities[i].append(num)
+    return dict(sorted(possibilities.items(), key=lambda x: len(x[1])))
 
 def solve(puzzle: np.ndarray, updater):
     possibilities = get_possible_fits(puzzle)
     recursive_backtracking(possibilities, puzzle, updater)
 
-def recursive_backtracking(possibilities: dict, puzzle: ndarray, updater):
+def recursive_backtracking(possibilities: dict, puzzle: np.ndarray, updater):
     zeros = np.count_nonzero(puzzle == 0)
     if zeros==0:
         return True
-    k = next(iter(possibilities))
-    i = k // 10
-    j = k % 10
-    for number in possibilities[k]:
-        if check_fit(puzzle, (i, j), number):
-            puzzle[i, j] = number
-            updater(number, i, j)
+    pos = next(iter(possibilities))
+    for number in possibilities[pos]:
+        fit = check_fit(puzzle, pos, number)
+        if fit:
+            puzzle[pos] = number
+            updater(number, pos)
             if recursive_backtracking(dict(islice(possibilities.items(), 1, None)), puzzle, updater): return True
-            puzzle[i,j] = 0
-            updater(0, i, j)
-
+            puzzle[pos] = 0
+            updater(0, pos)
     return False
 
-def check_fit(puzzle: np.ndarray, index: tuple, number: int)-> bool:
-    fits = True
-    #check Row fit
-    for j in range(9):
-        if puzzle[index[0], j] == number:return False
-
-    #check Collumn fit
+def check_fit(puzzle: np.ndarray, index: int, number: int)-> bool:
+    #check row
+    row = index//9
+    row_i = row*9
     for i in range(9):
-        if puzzle[i, index[1]] == number: return False
-
-    #check Box fit
-    start_row = (index[0] // 3) * 3
-    start_col = (index[1] // 3) * 3
-    for i in range(3):
+        if puzzle[row_i+i] == number:return False
+    #check Column
+    for i in range(9):
+        if puzzle[index-9*i] == number:return False
+    #check Box
+    col = index-row_i
+    box_i = (row//3*3)*9 + (col//3*3)  #index of the top left element of the box
+    for c in range(3):
         for j in range(3):
-            if puzzle[start_row + i, start_col + j] == number: return False
-
-    return fits
+            if puzzle[box_i+j+9*c] == number: return False
+    return True
